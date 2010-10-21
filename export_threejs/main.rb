@@ -12,6 +12,14 @@ class ThreeJSExporter
   end
 
   private
+  def title
+    if @model.title.empty?
+      "Untitled"
+    else
+      @model.title
+    end
+  end
+  
   def faces
     faces = []
     @entities.each do |entity|
@@ -52,21 +60,27 @@ class ThreeJSExporter
 <!DOCTYPE html>
 <html>
   <head>
-    <title>#{@model.title}</title>
+    <title>#{title}</title>
     <meta charset="utf-8">
     <style>
       #{load_asset "style.css"}
     </style>
   </head>
   <body>
-    <h1>#{@model.title}</h1>
-    <div id="container"></div>
-    <script>
-      #{load_asset "three.js"}
-      #{to_js}
-      #{load_asset "scene.js"}
-    </script>
+    <h1>#{title}</h1>
+    #{to_html_snippet}
   </body>
+EOF
+  end
+  
+  def to_html_snippet
+    return <<EOF
+<div id="container"></div>
+<script>
+  #{load_asset "three.js"}
+  #{to_js}
+  #{load_asset "scene.js"}
+</script>
 EOF
   end
   
@@ -114,7 +128,9 @@ end
 puts 'hallo'
 
 UI.menu("File").add_item "Export to three.js" do
-  filepath = UI.savepanel("Filename", nil, "#{Sketchup.active_model.title}.html")
+  title = Sketchup.active_model.title
+  title = "Unnamed" if title.empty?
+  filepath = UI.savepanel("Filename", nil, title + ".html")
   exporter = ThreeJSExporter.new filepath
   exporter.export
 end
