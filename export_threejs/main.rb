@@ -33,21 +33,29 @@ class ThreeJSExporter
     faces
   end
   
-  def vertices
-    faces.inject([]) do |vertices, face|
-      vertices.concat face.vertices
-    end.uniq
+  def meshes
+    faces.map {|face| face.mesh }
+  end
+  
+  def polygons
+    meshes.inject([]) do |polygons, mesh|
+      mesh.polygons.each do |polygon|
+        polygons.push polygon.map {|point_nr| mesh.point_at(point_nr.abs) }
+      end
+      polygons
+    end
   end
   
   def points
-    vertices.map {|vertex| vertex.position }
+    polygons.inject([]) do |points, polygon|
+      points.concat polygon
+    end.uniq
   end
   
   def triangles
-    vs = vertices
-    faces.map do |face|
-      # TODO: split faces with many vertices into triangles
-      face.vertices.map {|v| vs.index v }
+    ps = points
+    polygons.map do |polygon|
+      polygon.map {|point| ps.index point }
     end
   end
   
@@ -124,8 +132,6 @@ exportThreeJSModels.push((function() {
 EOF
   end
 end
-
-puts 'hallo'
 
 UI.menu("File").add_item "Export to three.js" do
   title = Sketchup.active_model.title
