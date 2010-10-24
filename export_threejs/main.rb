@@ -69,15 +69,19 @@ class ThreeJSExporter
 <html>
   <head>
     <title>#{title}</title>
-    <meta charset="utf-8">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
     <style>
       #{load_asset "style.css"}
     </style>
   </head>
   <body>
-    <h1>#{title}</h1>
+    <div id="overlay">
+      <h1>#{title}</h1>
+    </div>
     #{to_html_snippet}
   </body>
+</html>
 EOF
   end
   
@@ -86,16 +90,15 @@ EOF
 <div id="container"></div>
 <script>
   #{load_asset "three.js"}
-  #{to_js}
   #{load_asset "scene.js"}
+  render(#{to_js});
 </script>
 EOF
   end
   
   def to_js
     return <<EOF
-var exportThreeJSModels = window.exportThreeJSModels || [];
-exportThreeJSModels.push((function() {
+(function() {
   function Model() {
     THREE.Geometry.call(this);
     var self = this;
@@ -127,8 +130,10 @@ exportThreeJSModels.push((function() {
   }
   Model.prototype = new THREE.Geometry();
   Model.prototype.constructor = Model;
+  
+  window["#{title.gsub("\\", "\\\\").gsub('"', '\"').gsub(/\s/, "_").gsub(/[^A-Za-z1-9-_]/, '')}"] = Model;
   return Model;
-})());
+})()
 EOF
   end
 end

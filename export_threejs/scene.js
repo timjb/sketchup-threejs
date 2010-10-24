@@ -1,62 +1,100 @@
-(function(win, doc) {
-  var mouseX = 0;
-  var mouseY = 0;
+function render(Model) {
+  var iPhone = navigator.userAgent.indexOf('iPhone') != -1;
+  
+  var width     = window.innerWidth;
+  var height    = window.innerHeight;
+  var rotationX = 0;
+  var rotationY = 0;
+  var cameraZ   = -1e3;
+  
+  var camera, scene, renderer, mesh;
   
   function attachEvents() {
-    var el = renderer.domElement; // canvas
-    
-    function savePosition(x, y) {
-      var box = el.getBoundingClientRect();
-      mouseX = x - box.left;
-      mouseY = y - box.top;
-    }
-    
-    function savePositionTouch(evt) {
-      if (evt.touches.length == 1) {
-        var touch = evt.touches[0];
-        savePosition(touch.pageX, touch.pageY);
-        evt.preventDefault();
-      }
-    }
-    
     // Start and stop the rendering when the mouse enters respectively leaves the canvas
-    el.addEventListener('mouseover', function() { start(); }, false);
-    el.addEventListener('mouseout',  function() { stop(); },  false);
+    document.body.addEventListener('mouseover', function() { start(); }, false);
+    document.body.addEventListener('mouseout',  function() { stop(); },  false);
     
-    el.addEventListener('mousemove',  function(evt) {
-      savePosition(evt.clientX, evt.clientY);
+    // Drag to rotate
+    var down = false;
+    function rotate(x, y) {
+      var newDown = { x: x, y: y };
+      rotationY -= (down.x - newDown.x)*(4*Math.PI/width);
+      rotationX += (down.y - newDown.y)*(2*Math.PI/width);
+      down = newDown;
+    }
+    if (!iPhone) {
+      document.body.addEventListener('mousedown', function(evt) {
+        down = { x: evt.clientX, y: evt.clientY };
+        document.body.className += ' mousedown';
+      }, false);
+      document.body.addEventListener('mousemove', function(evt) {
+        if (down) {
+          rotate(evt.clientX, evt.clientY);
+        }
+      }, false);
+      function mouseUp() {
+        down = false;
+        document.body.className = document.body.className.replace(/(^|\s)mousedown(\s|$)/, '');
+      }
+      document.addEventListener('mouseup', mouseUp, false);
+      document.addEventListener('mouseout', mouseUp, false);
+    } else { // iPhone
+      document.body.addEventListener('touchstart', function(evt) {
+        if (evt.touches.length == 1) {
+          var touch = evt.touches[0];
+          down = { x: touch.pageX, y: touch.pageY };
+          evt.preventDefault();
+        }
+      }, false);
+      document.body.addEventListener('touchmove', function(evt) {
+        if (evt.touches.length == 1) {
+          var touch = evt.touches[0];
+          rotate(touch.pageX, touch.pageY);
+          loop();
+        }
+      }, false);
+    }
+    
+    // Mouse wheel: Zoom 5%
+    // IE, Webkit, Opera
+    document.addEventListener('mousewheel', function(evt) {
+      cameraZ *= 1 - evt.wheelDelta/2400;
+    }, false);
+    // Firefox
+    window.addEventListener('DOMMouseScroll', function(evt) {
+      cameraZ *= 1 + evt.detail/20;
     }, false);
     
-    // iPhone
-    el.addEventListener('touchstart', savePositionTouch, false);
-    el.addEventListener('touchmove',  savePositionTouch, false);
+    // Window resize
+    var resizeTimeout = null;
+    function resize() {
+      width = window.innerWidth;
+      height = window.innerHeight;
+      
+      var oldCamera = camera;
+      camera = new THREE.Camera(75, width/height, 1/1e6, 1e9);
+      camera.position.z = oldCamera.position.z;
+      
+      renderer.setSize(width, height);
+      loop();
+    }
+    window.addEventListener('resize', function() {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(resize, 25);
+    }, false);
   }
   
-  //function loadBitmapMaterial(url) {
-  //  texture = document.createElement('canvas');
-  //  texture.width = 128;
-  //  texture.height = 128;
-  //  
-  //  var material = new THREE.BitmapUVMappingMaterial(texture);
-  //  
-  //  var temp = new Image();
-  //  temp.onload = function() {
-  //    material.bitmap = this;
-  //    renderer.render(scene, camera);
-  //  };
-  //  temp.src = url;
-  //  
-  //  return material;
-  //}
-  
-  function loop() {
-    mesh.rotation.x += (mouseY/height * Math.PI*0.3 - mesh.rotation.x)*0.1;
-    mesh.rotation.y += (mouseX/width  * Math.PI*2   - mesh.rotation.y)*0.1;
-    renderer.render(scene, camera);
-  }
+  //
   
   var timer = null;
   var fps = 25;
+  
+  function loop() {
+    mesh.rotation.x = (2*mesh.rotation.x + rotationX) / 3;
+    mesh.rotation.y = (2*mesh.rotation.y + rotationY) / 3;
+    camera.position.z = (2*camera.position.z + cameraZ) / 3;
+    renderer.render(scene, camera);
+  }
   
   function start() {
     stop();
@@ -70,22 +108,27 @@
     }
   }
   
-  var container = doc.getElementById('container');
-  var width  = 800;
-  var height = 350;
+  //
   
-  var camera = new THREE.Camera(75, width / height, 0.0001, 1e4);
-  camera.position.z = -1000;
-  var scene = new THREE.Scene();
-  var renderer = new THREE.CanvasRenderer();
-  renderer.setSize(width, height);
+  function init() {
+    var container = document.getElementById('container');
+    
+    camera = new THREE.Camera(75, width/height, 1/1e6, 1e9);
+    camera.position.z = cameraZ;
+    scene = new THREE.Scene();
+    renderer = new THREE.CanvasRenderer();
+    renderer.setSize(width, height);
+    
+    mesh = new THREE.Mesh(new Model(), new THREE.MeshColorFillMaterial(0xff0000, 1));
+    mesh.scale.x = mesh.scale.y = mesh.scale.z = 50;
+    scene.add(mesh);
+    
+    container.appendChild(renderer.domElement);
+    attachEvents();
+    loop();
+  }
   
-  var mesh = new THREE.Mesh(new (exportThreeJSModels[0])(), new THREE.MeshColorFillMaterial(0xff0000, 1));
-  mesh.scale.x = mesh.scale.y = mesh.scale.z = 50;
-  scene.add(mesh);
-  
-  container.appendChild(renderer.domElement);
-  attachEvents();
+  init();
   
   //var material;
   //var texturePath = '';
@@ -93,7 +136,7 @@
   
   //function initBitmapMaterial(url) {
   //  
-  //  texture = doc.createElement( 'canvas' );
+  //  texture = document.createElement( 'canvas' );
   //  texture.width = 128;
   //  texture.height = 128;
   //  
@@ -106,4 +149,4 @@
   //  };
   //  temp.src = url;
   //}
-})(window, document);
+}
