@@ -120,7 +120,7 @@ function render(Model) {
     renderer.setSize(width, height);
     
     mesh = new THREE.Mesh(new Model(), new THREE.MeshColorFillMaterial(0xff0000, 1));
-    mesh.scale.x = mesh.scale.y = mesh.scale.z = 50;
+    mesh.scale.x = mesh.scale.y = mesh.scale.z = 2e3/Math.max(Model.bounds.width, Model.bounds.height, Model.bounds.depth);
     scene.add(mesh);
     
     container.appendChild(renderer.domElement);

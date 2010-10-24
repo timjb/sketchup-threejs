@@ -130,6 +130,7 @@ EOF
   }
   Model.prototype = new THREE.Geometry();
   Model.prototype.constructor = Model;
+  Model.bounds = { width: #{@model.bounds.width.to_f}, height: #{@model.bounds.height.to_f}, depth: #{@model.bounds.depth.to_f} };
   
   window["#{title.gsub("\\", "\\\\").gsub('"', '\"').gsub(/\s/, "_").gsub(/[^A-Za-z1-9-_]/, '')}"] = Model;
   return Model;
