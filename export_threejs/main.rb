@@ -6,11 +6,12 @@ class ThreeJSExporter
   end
   
   def export
-    File.open(@filepath, "w") do |file|
-      file.write to_html
-    end
+    explode
+    html = to_html
+    File.open(@filepath, "w") {|file| file.write html }
+    implode
   end
-
+  
   private
   def title
     if @model.title.empty?
@@ -20,16 +21,24 @@ class ThreeJSExporter
     end
   end
   
-  def faces
-    faces = []
-    @entities.each do |entity|
-      faces.push entity if entity.is_a? Sketchup::Face
-    end
+  def explode
+    @explosions = 0
     @model.definitions.each do |definition|
-      definition.entities.each do |entity|
-        faces.push entity if entity.is_a? Sketchup::Face
+      definition.instances.each do |instance|
+        @explosions += 1
+        instance.explode
       end
     end
+  end
+  
+  def implode
+    @explosions.times do
+      Sketchup.undo
+    end
+  end
+  
+  def faces
+    faces = @entities.select {|entity| entity.is_a? Sketchup::Face }
     faces
   end
   
@@ -38,24 +47,29 @@ class ThreeJSExporter
   end
   
   def polygons
-    meshes.inject([]) do |polygons, mesh|
-      mesh.polygons.each do |polygon|
-        polygons.push polygon.map {|point_nr| mesh.point_at(point_nr.abs) }
+    if not @polygons_cache
+      @polygons_cache = meshes.inject([]) do |polygons, mesh|
+        mesh.polygons.each do |polygon|
+          polygons.push polygon.map {|point_nr| mesh.point_at(point_nr.abs) }
+        end
+        polygons
       end
-      polygons
     end
+    @polygons_cache
   end
   
   def points
-    polygons.inject([]) do |points, polygon|
-      points.concat polygon
-    end.uniq
+    if not @points_cache
+      @points_cache = polygons.inject([]) do |points, polygon|
+        points.concat polygon
+      end.uniq
+    end
+    @points_cache
   end
   
   def triangles
-    ps = points
     polygons.map do |polygon|
-      polygon.map {|point| ps.index point }
+      polygon.map {|point| points.index point }
     end
   end
   
@@ -143,6 +157,8 @@ UI.menu("File").add_item "Export to three.js" do
   title = Sketchup.active_model.title
   title = "Unnamed" if title.empty?
   filepath = UI.savepanel("Filename", nil, title + ".html")
-  exporter = ThreeJSExporter.new filepath
-  exporter.export
+  if not filepath.nil?
+    exporter = ThreeJSExporter.new filepath
+    exporter.export
+  end
 end
