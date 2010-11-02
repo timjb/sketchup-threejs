@@ -123,7 +123,7 @@ EOF
       }
     }
     
-    each([#{points.map {|p| "[#{p.x.to_f},#{p.y.to_f},#{p.z.to_f}]"}.join(',')}], function(point) {
+    each([#{points.map {|p| "[" + [p.x, p.y, p.z].map {|l| "%.6f" % l.to_f }.join(",") + "]" }.join(',')}], function(point) {
       self.vertices.push(new THREE.Vertex(new THREE.Vector3(point[0], point[1], point[2])));
     });
     
