@@ -1,84 +1,180 @@
-class ThreeJSExporter
-  def initialize(filepath)
-    @filepath = filepath
-    @model = Sketchup.active_model
-    @entities = @model.active_entities
-  end
+module ExportThreeJS
+  TMP_DIR = File.join(File.dirname(__FILE__), 'tmp')
+  DEBUG = false
   
-  def export
-    explode
-    html = to_html
-    File.open(@filepath, "w") {|file| file.write html }
-    implode
-  end
-  
-  private
-  def title
-    if @model.title.empty?
-      "Untitled"
-    else
-      @model.title
+  class Sketchup::Texture
+    def to_data_url
+      type = case File.extname(self.filename).downcase
+        when ".png"; "image/png"
+        when ".jpg", ".jpeg"; "image/jpeg"
+        when ".tiff"; "image/tiff"
+        when ".gif"; "image/gif"
+      end
+      content = [File.open(File.join(TMP_DIR, self.filename), "rb").read].pack("m").gsub("\n", '')
+      "data:#{type};base64,#{content}"
     end
   end
   
-  def explode
-    @explosions = 0
-    @model.definitions.each do |definition|
-      definition.instances.each do |instance|
-        @explosions += 1
-        instance.explode
+  class Sketchup::Color
+    def to_hex
+      self.to_a[0..2].map {|n| "%02s" % n.to_s(16)}.join
+    end
+  end
+  
+  class Sketchup::Material
+    def to_js
+      case self.materialType
+        when 0 # plain
+          if self.use_alpha?
+            "new THREE.MeshColorFillMaterial(0x#{self.color.to_hex}, #{"%.2f" % self.alpha})"
+          else
+            "new THREE.MeshColorFillMaterial(0x#{self.color.to_hex})"
+          end
+        when 1 # texture
+          'new THREE.MeshBitmapMaterial((function() { var img = new Image(); img.src="' + self.texture.to_data_url + '"; return img; })())'
+        else # color + texture
+          ""
       end
     end
   end
   
-  def implode
-    @explosions.times do
-      Sketchup.undo
+  class Geom::Point3d
+    def to_js
+      "[" + [self.x, self.y, self.z].map {|l| "%.6f" % l.to_f }.join(",") + "]"
     end
   end
   
-  def faces
-    faces = @entities.select {|entity| entity.is_a? Sketchup::Face }
-    faces
-  end
-  
-  def meshes
-    faces.map {|face| face.mesh }
-  end
-  
-  def polygons
-    if not @polygons_cache
-      @polygons_cache = meshes.inject([]) do |polygons, mesh|
-        mesh.polygons.each do |polygon|
-          polygons.push polygon.map {|point_nr| mesh.point_at(point_nr.abs) }
+  class ThreeJSExporter
+    def initialize(filepath)
+      @filepath = filepath
+      @model = Sketchup.active_model
+      @entities = @model.active_entities
+    end
+    
+    def export
+      explode
+      make_tmp_dir
+      html = to_html
+      File.open(@filepath, "w") {|file| file.write html }
+      #uvs
+    ensure
+      rm_tmp_dir
+      implode
+    end
+    
+    private
+    def title
+      if @model.title.empty?
+        "Untitled"
+      else
+        @model.title
+      end
+    end
+    
+    def make_tmp_dir
+      unless File.directory?(TMP_DIR)
+        Dir.mkdir(TMP_DIR)
+      end
+    end
+    
+    def rm_tmp_dir
+      files = Dir.glob(TMP_DIR + "/*")
+      files.each do |file|
+        File.delete file
+      end
+      Dir.rmdir(TMP_DIR)
+    end
+    
+    def explode
+      @explosions = 0
+      @model.definitions.each do |definition|
+        definition.instances.each do |instance|
+          @explosions += 1
+          instance.explode
         end
-        polygons
       end
     end
-    @polygons_cache
-  end
-  
-  def points
-    if not @points_cache
-      @points_cache = polygons.inject([]) do |points, polygon|
-        points.concat polygon
-      end.uniq
+    
+    def implode
+      @explosions.times do
+        Sketchup.undo
+      end
     end
-    @points_cache
-  end
-  
-  def triangles
-    polygons.map do |polygon|
-      polygon.map {|point| points.index point }
+    
+    def faces
+      @entities.select {|entity| entity.is_a? Sketchup::Face }.map {|face| { :face => face} }
     end
-  end
-  
-  def load_asset asset
-    File.open(File.dirname(__FILE__) + "/" + asset, "r").read
-  end
-  
-  def to_html
-    return <<EOF
+    
+    def meshes
+      unless @mashes_cache
+        @mashes_cache = faces.each {|dict| dict[:mesh] = dict[:face].mesh 7 }
+      end
+      @mashes_cache
+    end
+    
+    def points
+      unless @points_cache
+        @points_cache = meshes.inject([]) do |points, dict|
+          points.concat dict[:mesh].points
+        end.uniq
+      end
+      @points_cache
+    end
+    
+    def triangles
+      meshes.inject([]) do |triangles, dict|
+        mesh = dict[:mesh]
+        material_nr = materials.index dict[:face].material
+        triangles.concat(mesh.polygons.map do |poly|
+          poly.map {|point_nr| points.index mesh.point_at(point_nr) } + [material_nr]
+        end)
+      end
+    end
+    
+    def materials
+      meshes.inject([]) do |mats, dict|
+        face = dict[:face]
+        material = face.material
+        unless material.nil? or mats.include?(material)
+          if material.texture
+            tw = Sketchup.create_texture_writer
+            tw.load face, true
+            tw.write face, true, File.join(TMP_DIR, material.texture.filename)
+          end
+          mats << material
+        end
+        mats
+      end
+    end
+    
+    def uvs
+      all_faces = meshes.inject([]) do |all, dict|
+        all.concat dict[:mesh].polygons
+      end
+      result = []
+      meshes.each do |dict|
+        face = dict[:face]
+        mesh = dict[:mesh]
+        if face.material.texture
+          mesh.polygons.each do |poly|
+            result.push(poly.map do |p_nr|
+              p = mesh.uv_at(p_nr, true)
+              Geom::Point3d.new([0, [1, p.x].min].max, [0, [1, 1-p.y].min].max, p.z) # Some p.x and p.y values are <0 or >1 for any reason. The texture is flipped vertically in three.js.
+            end)
+          end
+        else
+          result.concat([nil] * mesh.count_polygons)
+        end
+      end
+      result
+    end
+    
+    def load_asset asset
+      File.open(File.dirname(__FILE__) + "/" + asset, "r").read
+    end
+    
+    def to_html
+      return <<EOF
 <!DOCTYPE html>
 <html>
   <head>
@@ -97,21 +193,21 @@ class ThreeJSExporter
   </body>
 </html>
 EOF
-  end
-  
-  def to_html_snippet
-    return <<EOF
+    end
+    
+    def to_html_snippet
+      return <<EOF
 <div id="container"></div>
 <script>
-  #{load_asset "three.js"}
+  #{load_asset(DEBUG ? "three_debug.js" : "three.js")}
   #{load_asset "scene.js"}
   render(#{to_js});
 </script>
 EOF
-  end
-  
-  def to_js
-    return <<EOF
+    end
+    
+    def to_js
+      return <<EOF
 (function() {
   function Model() {
     THREE.Geometry.call(this);
@@ -123,24 +219,26 @@ EOF
       }
     }
     
-    each([#{points.map {|p| "[" + [p.x, p.y, p.z].map {|l| "%.6f" % l.to_f }.join(",") + "]" }.join(',')}], function(point) {
+    each([#{points.map {|p| p.to_js }.join(',')}], function(point) {
       self.vertices.push(new THREE.Vertex(new THREE.Vector3(point[0], point[1], point[2])));
     });
     
+    var materials = [#{materials.map {|m| m.to_js }.join(",")}];
+    
     each([#{triangles.map {|t| "[#{t.join ','}]"}.join(',')}], function(triangle) {
-      self.faces.push(new THREE.Face3(triangle[0], triangle[1], triangle[2]));
+      self.faces.push(new THREE.Face3(triangle[0], triangle[1], triangle[2], undefined, materials[triangle[3]]));
     });
     
-    //function f3n( a, b, c, nx, ny, nz ) {
-    //  scope.faces.push( new THREE.Face3( a, b, c, new THREE.Vector3( nx, ny, nz ) ) );
-    //}
-    //function uv(u1, v1, u2, v2, u3, v3) {
-    //  scope.uvs.push( [ 
-    //    new THREE.Vector2( u1, v1 ), 
-    //    new THREE.Vector2( u2, v2 ), 
-    //    new THREE.Vector2( u3, v3 ) 
-    //  ]);
-    //}
+    each([#{uvs.map {|uvs2| uvs2.nil? ? "null" : "[" + uvs2.map {|p| "[" + [p.x, p.y].map {|l| "%.6f" % l }.join(",") + "]" }.join(",") + "]"}.join(",")}], function(uvs) {
+      self.uvs.push(uvs == null ? uvs : [
+        new THREE.UV(uvs[0][0], uvs[0][1]),
+        new THREE.UV(uvs[1][0], uvs[1][1]),
+        new THREE.UV(uvs[2][0], uvs[2][1])
+      ]);
+    });
+    
+    this.computeCentroids();
+    this.computeNormals();
   }
   Model.prototype = new THREE.Geometry();
   Model.prototype.constructor = Model;
@@ -150,15 +248,16 @@ EOF
   return Model;
 })()
 EOF
+    end
   end
-end
-
-UI.menu("File").add_item "Export to three.js" do
-  title = Sketchup.active_model.title
-  title = "Unnamed" if title.empty?
-  filepath = UI.savepanel("Filename", nil, title + ".html")
-  if not filepath.nil?
-    exporter = ThreeJSExporter.new filepath
-    exporter.export
+  
+  UI.menu("File").add_item "Export to three.js" do
+    title = Sketchup.active_model.title
+    title = "Unnamed" if title.empty?
+    filepath = UI.savepanel("Filename", nil, title + ".html")
+    if not filepath.nil?
+      exporter = ThreeJSExporter.new filepath
+      exporter.export
+    end
   end
 end

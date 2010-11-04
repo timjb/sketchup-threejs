@@ -119,9 +119,9 @@ function render(Model) {
     renderer = new THREE.CanvasRenderer();
     renderer.setSize(width, height);
     
-    mesh = new THREE.Mesh(new Model(), new THREE.MeshColorFillMaterial(0xff0000, 1));
+    mesh = new THREE.Mesh(new Model(), new THREE.MeshFaceMaterial());
     mesh.scale.x = mesh.scale.y = mesh.scale.z = 2e3/Math.max(Model.bounds.width, Model.bounds.height, Model.bounds.depth);
-    scene.add(mesh);
+    scene.addObject(mesh);
     
     container.appendChild(renderer.domElement);
     attachEvents();
