@@ -38,10 +38,18 @@ module ExportThreeJS
     end
   end
   
-  class Geom::Point3d
+  module PointToJS
     def to_js
       "[" + [self.x, self.y, self.z].map {|l| "%.6f" % l.to_f }.join(",") + "]"
     end
+  end
+  
+  class Geom::Point3d
+    include PointToJS
+  end
+  
+  class Geom::Vector3d
+    include PointToJS
   end
   
   class ThreeJSExporter
@@ -169,6 +177,10 @@ module ExportThreeJS
       result
     end
     
+    def center
+      @model.bounds.center
+    end
+    
     def load_asset asset
       File.open(File.dirname(__FILE__) + "/" + asset, "r").read
     end
@@ -219,17 +231,26 @@ EOF
       }
     }
     
-    each([#{points.map {|p| p.to_js }.join(',')}], function(point) {
+    each([#{points.map {|p| (p - center).to_js }.join(',')}], function(point) {
       self.vertices.push(new THREE.Vertex(new THREE.Vector3(point[0], point[1], point[2])));
     });
     
     var materials = [#{materials.map {|m| m.to_js }.join(",")}];
     
-    each([#{triangles.map {|t| "[#{t.join ','}]"}.join(',')}], function(triangle) {
+    each([#{triangles.map {|t|"[#{t.join ','}]"}.join(',')}], function(triangle) {
       self.faces.push(new THREE.Face3(triangle[0], triangle[1], triangle[2], undefined, materials[triangle[3]]));
     });
     
-    each([#{uvs.map {|uvs2| uvs2.nil? ? "null" : "[" + uvs2.map {|p| "[" + [p.x, p.y].map {|l| "%.6f" % l }.join(",") + "]" }.join(",") + "]"}.join(",")}], function(uvs) {
+    each([#{uvs.map do |uvs2|
+      if uvs2.nil?
+        "null"
+      else
+        #uvs2[1], uvs2[2] = uvs2[2], uvs2[1]
+        "[" + uvs2.map do |p|
+          "[" + [p.x, p.y].map {|l| "%.6f" % l }.join(",") + "]"
+        end.join(",") + "]"
+      end
+    end.join(",")}], function(uvs) {
       self.uvs.push(uvs == null ? uvs : [
         new THREE.UV(uvs[0][0], uvs[0][1]),
         new THREE.UV(uvs[1][0], uvs[1][1]),
@@ -243,6 +264,7 @@ EOF
   Model.prototype = new THREE.Geometry();
   Model.prototype.constructor = Model;
   Model.bounds = { width: #{@model.bounds.width.to_f}, height: #{@model.bounds.height.to_f}, depth: #{@model.bounds.depth.to_f} };
+  //Model.center = #{@model.bounds.center.to_js};
   
   window["#{title.gsub("\\", "\\\\").gsub('"', '\"').gsub(/\s/, "_").gsub(/[^A-Za-z1-9-_]/, '')}"] = Model;
   return Model;

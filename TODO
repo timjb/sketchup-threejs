@@ -4,7 +4,6 @@
   * Bug reporting
   * Credits
 * Backfaces
-* Fix initial position and rotation
 * Include models for test
 * Show what the program is doing (maybe with Sketchup.status_text=)
 * Show a Webdialog to let the user choose from some options

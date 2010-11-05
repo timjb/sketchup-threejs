@@ -4,8 +4,8 @@ function render(Model) {
   var width     = window.innerWidth;
   var height    = window.innerHeight;
   var rotationX = 0;
-  var rotationY = 0;
-  var cameraZ   = -1e3;
+  var rotationZ = 0;
+  var cameraY   = 0;
   
   var camera, scene, renderer, mesh;
   
@@ -18,8 +18,8 @@ function render(Model) {
     var down = false;
     function rotate(x, y) {
       var newDown = { x: x, y: y };
-      rotationY -= (down.x - newDown.x)*(4*Math.PI/width);
-      rotationX += (down.y - newDown.y)*(2*Math.PI/width);
+      rotationZ -= (down.x - newDown.x)*(4*Math.PI/width);
+      rotationX -= (down.y - newDown.y)*(2*Math.PI/width);
       down = newDown;
     }
     if (!iPhone) {
@@ -58,11 +58,11 @@ function render(Model) {
     // Mouse wheel: Zoom 5%
     // IE, Webkit, Opera
     document.addEventListener('mousewheel', function(evt) {
-      cameraZ *= 1 - evt.wheelDelta/2400;
+      cameraY *= 1 - evt.wheelDelta/2400;
     }, false);
     // Firefox
     window.addEventListener('DOMMouseScroll', function(evt) {
-      cameraZ *= 1 + evt.detail/20;
+      cameraY *= 1 + evt.detail/20;
     }, false);
     
     // Window resize
@@ -73,7 +73,7 @@ function render(Model) {
       
       var oldCamera = camera;
       camera = new THREE.Camera(75, width/height, 1/1e6, 1e9);
-      camera.position.z = oldCamera.position.z;
+      camera.position.y = oldCamera.position.y;
       
       renderer.setSize(width, height);
       loop();
@@ -91,8 +91,8 @@ function render(Model) {
   
   function loop() {
     mesh.rotation.x = (2*mesh.rotation.x + rotationX) / 3;
-    mesh.rotation.y = (2*mesh.rotation.y + rotationY) / 3;
-    camera.position.z = (2*camera.position.z + cameraZ) / 3;
+    mesh.rotation.z = (2*mesh.rotation.z + rotationZ) / 3;
+    camera.position.y = (2*camera.position.y + cameraY) / 3;
     renderer.render(scene, camera);
   }
   
@@ -114,7 +114,9 @@ function render(Model) {
     var container = document.getElementById('container');
     
     camera = new THREE.Camera(75, width/height, 1/1e6, 1e9);
-    camera.position.z = cameraZ;
+    camera.position.y = cameraY = -3e2 * (Model.bounds.depth / 2);
+    camera.position.z = 1e-10; // can't be 0 (devision by 0?)
+    camera.up = new THREE.Vector3(0, 0, 1);
     scene = new THREE.Scene();
     renderer = new THREE.CanvasRenderer();
     renderer.setSize(width, height);
