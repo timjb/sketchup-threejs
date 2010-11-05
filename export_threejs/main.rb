@@ -17,7 +17,7 @@ module ExportThreeJS
   
   class Sketchup::Color
     def to_hex
-      self.to_a[0..2].map {|n| "%02s" % n.to_s(16)}.join
+      self.to_a[0..2].map {|n| "%02x" % n}.join
     end
   end
   
