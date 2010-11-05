@@ -8,5 +8,8 @@
 * Include models for test
 * Show what the program is doing (maybe with Sketchup.status_text=)
 * Show a Webdialog to let the user choose from some options
+* Option to export only the selected entities
+* Option to set or disable the caption
 * Option to turn textures off
 * Option to export only the Object in JavaScript
+* Example on GitHub pages
