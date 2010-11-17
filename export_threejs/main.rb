@@ -23,18 +23,17 @@ module ExportThreeJS
   
   class Sketchup::Material
     def to_js
-      case self.materialType
-        when 0 # plain
-          if self.use_alpha?
-            "new THREE.MeshColorFillMaterial(0x#{self.color.to_hex}, #{"%.2f" % self.alpha})"
-          else
-            "new THREE.MeshColorFillMaterial(0x#{self.color.to_hex})"
-          end
-        when 1 # texture
-          'new THREE.MeshBitmapMaterial((function() { var img = new Image(); img.src="' + self.texture.to_data_url + '"; return img; })())'
-        else # color + texture
-          ""
+      props = {}
+      if self.materialType == 0 or self.materialType == 2
+        props[:color] = "0x" + self.color.to_hex
       end
+      if self.materialType == 1 or self.materialType == 2
+        props[:map] = 'new THREE.Texture((function() { var img = new Image(); img.src="' + self.texture.to_data_url + '"; return img; })(), THREE.UVMapping)'
+      end
+      if self.use_alpha?
+        props[:opacity] = self.alpha
+      end
+      "new THREE.MeshBasicMaterial({" + props.to_a.map {|kv_pair| kv_pair.join ": " }.join(", ") + "})"
     end
   end
   
@@ -163,7 +162,7 @@ module ExportThreeJS
       meshes.each do |dict|
         face = dict[:face]
         mesh = dict[:mesh]
-        if face.material.texture
+        if face.material and face.material.texture
           mesh.polygons.each do |poly|
             result.push(poly.map do |p_nr|
               p = mesh.uv_at(p_nr, true)
@@ -245,7 +244,6 @@ EOF
       if uvs2.nil?
         "null"
       else
-        #uvs2[1], uvs2[2] = uvs2[2], uvs2[1]
         "[" + uvs2.map do |p|
           "[" + [p.x, p.y].map {|l| "%.6f" % l }.join(",") + "]"
         end.join(",") + "]"
