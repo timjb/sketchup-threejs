@@ -30,9 +30,9 @@ module ExportThreeJS
       if self.materialType == 1 or self.materialType == 2
         props[:map] = 'new THREE.Texture((function() { var img = new Image(); img.src="' + self.texture.to_data_url + '"; return img; })(), THREE.UVMapping)'
       end
-      if self.use_alpha?
+      #if self.use_alpha?
         props[:opacity] = self.alpha
-      end
+      #end
       "new THREE.MeshBasicMaterial({" + props.to_a.map {|kv_pair| kv_pair.join ": " }.join(", ") + "})"
     end
   end
@@ -262,7 +262,6 @@ EOF
   Model.prototype = new THREE.Geometry();
   Model.prototype.constructor = Model;
   Model.bounds = { width: #{@model.bounds.width.to_f}, height: #{@model.bounds.height.to_f}, depth: #{@model.bounds.depth.to_f} };
-  //Model.center = #{@model.bounds.center.to_js};
   
   window["#{title.gsub("\\", "\\\\").gsub('"', '\"').gsub(/\s/, "_").gsub(/[^A-Za-z1-9-_]/, '')}"] = Model;
   return Model;

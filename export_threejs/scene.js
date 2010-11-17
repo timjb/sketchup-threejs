@@ -131,24 +131,4 @@ function render(Model) {
   }
   
   init();
-  
-  //var material;
-  //var texturePath = '';
-  //initBitmapMaterial(texturePath);
-  
-  //function initBitmapMaterial(url) {
-  //  
-  //  texture = document.createElement( 'canvas' );
-  //  texture.width = 128;
-  //  texture.height = 128;
-  //  
-  //  material = new THREE.MeshBitmapUVMappingMaterial( texture );
-  //  
-  //  var temp = new Image();
-  //  temp.onload = function () {
-  //    material.bitmap = this;
-  //    renderer.render(scene, camera);
-  //  };
-  //  temp.src = url;
-  //}
 }
