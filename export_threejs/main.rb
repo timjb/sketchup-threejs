@@ -117,7 +117,7 @@ module ExportThreeJS
       material = face.material
       material_index = @materials.index material
       if material_index.nil?
-        if material.texture
+        if !material.nil? and material.texture
           tw = Sketchup.create_texture_writer
           tw.load face, true
           tw.write face, true, File.join(TMP_DIR, material.texture.filename)
@@ -131,7 +131,7 @@ module ExportThreeJS
         @faces.push(poly.map {|point_nr| point_indices[point_nr.abs-1] } + [material_index])
         
         # Handle UV
-        if material.texture
+        if !material.nil? and material.texture
           @uvs.push(poly.map do |p_nr|
             p = mesh.uv_at(p_nr, true)
             [[0, [1, p.x].min].max, [0, [1, 1-p.y].min].max] # Some p.x and p.y values are <0 or >1 for any reason. The texture is flipped vertically in three.js.
@@ -216,19 +216,27 @@ EOF
     end
     
     def rm_tmp_dir
-      files = Dir.glob(TMP_DIR + "/*")
-      files.each do |file|
-        File.delete file
+      if File.directory?(TMP_DIR)
+        files = Dir.glob(TMP_DIR + "/*")
+        files.each do |file|
+          File.delete file
+        end
+        Dir.rmdir(TMP_DIR)
       end
-      Dir.rmdir(TMP_DIR)
     end
     
     def explode
       @explosions = 0
-      @model.definitions.each do |definition|
-        definition.instances.each do |instance|
-          @explosions += 1
-          instance.explode
+      
+      exploded = true
+      while exploded
+        exploded = false
+        @model.entities.each do |entity|
+          if entity.respond_to? :explode
+            entity.explode
+            @explosions += 1
+            exploded = true
+          end
         end
       end
     end
