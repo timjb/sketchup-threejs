@@ -117,27 +117,49 @@ module ExportThreeJS
       material = face.material
       material_index = @materials.index material
       if material_index.nil?
-        if !material.nil? and material.texture
-          tw = Sketchup.create_texture_writer
-          tw.load face, true
-          tw.write face, true, File.join(TMP_DIR, material.texture.filename)
-        end
+        export_material material
         @materials.push material
         material_index = @materials.size - 1
       end
       
+      # Handle back_material
+      back_material = face.back_material
+      back_material_index = @materials.index back_material
+      if back_material_index.nil?
+        export_material back_material
+        @materials.push back_material
+        back_material_index = @materials.size - 1
+      end
+      
       # Handle faces
       mesh.polygons.each do |poly|
-        @faces.push(poly.map {|point_nr| point_indices[point_nr.abs-1] } + [material_index])
+        unless material.nil?
+          @faces.push(poly.map {|point_nr| point_indices[point_nr.abs-1] } + [material_index])
+          
+          # Handle UV
+          if material.texture
+            @uvs.push(poly.map do |p_nr|
+              p = mesh.uv_at(p_nr, true)
+              [[0, [1, p.x].min].max, [0, [1, 1-p.y].min].max] # Some p.x and p.y values are <0 or >1 for any reason. The texture is flipped vertically in three.js.
+            end)
+          else
+            @uvs.push nil
+          end
+        end
         
-        # Handle UV
-        if !material.nil? and material.texture
-          @uvs.push(poly.map do |p_nr|
-            p = mesh.uv_at(p_nr, true)
-            [[0, [1, p.x].min].max, [0, [1, 1-p.y].min].max] # Some p.x and p.y values are <0 or >1 for any reason. The texture is flipped vertically in three.js.
-          end)
-        else
-          @uvs.push nil
+        unless back_material.nil?
+          poly_back = [poly[1], poly[0], poly[2]]
+          @faces.push(poly_back.map {|point_nr| point_indices[point_nr.abs-1] } + [back_material_index])
+          
+          # Handle UV
+          if back_material.texture
+            @uvs.push(poly_back.map do |p_nr|
+              p = mesh.uv_at(p_nr, false)
+              [[0, [1, p.x].min].max, [0, [1, 1-p.y].min].max] # Some p.x and p.y values are <0 or >1 for any reason. The texture is flipped vertically in three.js.
+            end)
+          else
+            @uvs.push nil
+          end
         end
       end
     end
@@ -184,6 +206,16 @@ module ExportThreeJS
   return Model;
 })()
 EOF
+    end
+    
+    private
+    
+    def export_material material
+      if !material.nil? and material.texture
+        tw = Sketchup.create_texture_writer
+        tw.load face, true
+        tw.write face, true, File.join(TMP_DIR, material.texture.filename)
+      end
     end
   end
   
