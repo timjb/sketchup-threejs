@@ -113,55 +113,9 @@ module ExportThreeJS
         end
       end
       
-      # Handle material
-      material = face.material
-      material_index = @materials.index material
-      if material_index.nil?
-        export_material material
-        @materials.push material
-        material_index = @materials.size - 1
-      end
-      
-      # Handle back_material
-      back_material = face.back_material
-      back_material_index = @materials.index back_material
-      if back_material_index.nil?
-        export_material back_material
-        @materials.push back_material
-        back_material_index = @materials.size - 1
-      end
-      
-      # Handle faces
-      mesh.polygons.each do |poly|
-        unless material.nil?
-          @faces.push(poly.map {|point_nr| point_indices[point_nr.abs-1] } + [material_index])
-          
-          # Handle UV
-          if material.texture
-            @uvs.push(poly.map do |p_nr|
-              p = mesh.uv_at(p_nr, true)
-              [[0, [1, p.x].min].max, [0, [1, 1-p.y].min].max] # Some p.x and p.y values are <0 or >1 for any reason. The texture is flipped vertically in three.js.
-            end)
-          else
-            @uvs.push nil
-          end
-        end
-        
-        unless back_material.nil?
-          poly_back = [poly[1], poly[0], poly[2]]
-          @faces.push(poly_back.map {|point_nr| point_indices[point_nr.abs-1] } + [back_material_index])
-          
-          # Handle UV
-          if back_material.texture
-            @uvs.push(poly_back.map do |p_nr|
-              p = mesh.uv_at(p_nr, false)
-              [[0, [1, p.x].min].max, [0, [1, 1-p.y].min].max] # Some p.x and p.y values are <0 or >1 for any reason. The texture is flipped vertically in three.js.
-            end)
-          else
-            @uvs.push nil
-          end
-        end
-      end
+      # Handle materials, polygons and UVs
+      handle_side face, mesh, point_indices, true
+      handle_side face, mesh, point_indices, false
     end
     
     def to_js
@@ -210,11 +164,39 @@ EOF
     
     private
     
-    def export_material material
-      if !material.nil? and material.texture
-        tw = Sketchup.create_texture_writer
-        tw.load face, true
-        tw.write face, true, File.join(TMP_DIR, material.texture.filename)
+    def handle_side face, mesh, point_indices, front
+      material = if front
+        face.material
+      else
+        face.back_material
+      end
+      
+      unless material.nil?
+        material_index = @materials.index material
+        if material_index.nil?
+          if material.texture
+            tw = Sketchup.create_texture_writer
+            tw.load face, front
+            tw.write face, front, File.join(TMP_DIR, material.texture.filename)
+          end
+          @materials.push material
+          material_index = @materials.size - 1
+        end
+        
+        mesh.polygons.each do |poly|
+          poly[0], poly[1] = poly[1], poly[0] if not front
+          @faces.push(poly.map {|point_nr| point_indices[point_nr.abs-1] } + [material_index])
+          
+          # Handle UV
+          if material.texture
+            @uvs.push(poly.map do |p_nr|
+              p = mesh.uv_at(p_nr, front)
+              [[0, [1, p.x].min].max, [0, [1, 1-p.y].min].max] # Some p.x and p.y values are <0 or >1 for any reason. The texture is flipped vertically in three.js.
+            end)
+          else
+            @uvs.push nil
+          end
+        end
       end
     end
   end
