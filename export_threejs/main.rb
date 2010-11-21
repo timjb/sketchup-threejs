@@ -188,10 +188,15 @@ EOF
   end
   
   class ThreeJSExporter
-    def initialize(filepath)
+    def initialize(filepath, only_selection)
       @filepath = filepath
+      @only_selection = only_selection
       @model = Sketchup.active_model
-      @entities = @model.active_entities
+      @entities = if @only_selection
+        @model.selection
+      else
+        @model.active_entities
+      end
     end
     
     def export
@@ -231,11 +236,19 @@ EOF
       exploded = true
       while exploded
         exploded = false
-        @model.entities.each do |entity|
+        @entities.each do |entity|
           if entity.respond_to? :explode
-            entity.explode
+            ents = entity.explode
             @explosions += 1
             exploded = true
+            if @only_selection
+              ents.each do |ent|
+                begin
+                  @entities.add ent
+                rescue TypeError
+                end
+              end
+            end
           end
         end
       end
@@ -300,7 +313,7 @@ EOF
   UI.menu("File").add_item "Export to three.js" do
     filepath = UI.savepanel("Filename", nil, Sketchup.active_model.title_or_untitled + ".html")
     if not filepath.nil?
-      exporter = ThreeJSExporter.new filepath
+      exporter = ThreeJSExporter.new filepath, false
       exporter.export
     end
   end
