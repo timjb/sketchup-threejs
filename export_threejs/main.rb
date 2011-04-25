@@ -1,6 +1,5 @@
 module ExportThreeJS
   TMP_DIR = File.join(File.dirname(__FILE__), 'tmp')
-  DEBUG = true
 
   class Sketchup::Model
     def title_or_untitled
@@ -21,7 +20,7 @@ module ExportThreeJS
   class Geom::Vector3d; def to_threejs; to_a.to_threejs; end; end
 
   class ::Object
-    def to_threej
+    def to_threejs
       self.to_s
     end
   end
@@ -34,7 +33,9 @@ module ExportThreeJS
 
   class ::Hash
     def to_threejs
-      '{' + self.to_a.map {|kv| kv[0] + ':' + kv[1].to_threejs }.join(',') + '}'
+      '{' + self.to_a.map do |kv|
+        kv[0].to_s + ':' + kv[1].to_threejs
+      end.join(',') + '}'
     end
   end
 
@@ -137,14 +138,15 @@ EOF
         triangle[0],
         triangle[1],
         triangle[2],
-        undefined,
+        null,
+        null,
         materials[triangle[3]]
       ));
     });
     
     // UVs
     each(#{@uvs.to_threejs}, function(uvs) {
-      self.uvs.push(uvs == null ? uvs : [
+      self.faceUvs.push(uvs == null ? uvs : [
         new THREE.UV(uvs[0][0], uvs[0][1]),
         new THREE.UV(uvs[1][0], uvs[1][1]),
         new THREE.UV(uvs[2][0], uvs[2][1])
@@ -152,7 +154,8 @@ EOF
     });
     
     this.computeCentroids();
-    this.computeNormals();
+    this.computeFaceNormals();
+    this.computeVertexNormals();
   }
   Model.prototype = new THREE.Geometry();
   Model.prototype.constructor = Model;
@@ -196,7 +199,7 @@ EOF
             @uvs.push(poly.map do |p_nr|
               p = mesh.uv_at(p_nr, front)
               # Some p.x and p.y values are <0 or >1 for any reason.
-              # The texture is flipped vertically in three.js.
+              # The texture is flipped vertically in Three.js.
               [[0, [1, p.x].min].max, [0, [1, 1-p.y].min].max]
             end)
           else
@@ -317,7 +320,7 @@ EOF
       return <<EOF
 <div id="container"></div>
 <script>
-  #{load_asset(DEBUG ? "three_debug.js" : "three.js")}
+  #{load_asset("Three.js")}
   #{load_asset "scene.js"}
   render(#{@three_js_model.to_threejs});
 </script>
