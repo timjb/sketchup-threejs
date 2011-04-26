@@ -336,4 +336,18 @@ EOF
       exporter.export
     end
   end
+
+  test_export_dir = "#{Sketchup.find_support_file 'plugins'}/test_export_threejs"
+  Dir.mkdir test_export_dir unless File.directory? test_export_dir
+  UI.menu("Plugins").add_item "Test exporting to Three.js" do
+    start_time = Time.now.to_f
+    Dir[Sketchup.template_dir + '/*.skp'].each do |template_path|
+      if Sketchup.open_file template_path
+        basename = File.basename template_path, '.skp'
+        export_path = "#{test_export_dir}/#{basename}.html"
+        ThreeJSExporter.new(export_path, false).export
+      end
+    end
+    UI.messagebox "Time needed: #{Time.now.to_f - start_time}s"
+  end
 end
