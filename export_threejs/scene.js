@@ -113,16 +113,15 @@ function render(Model) {
   function init() {
     var container = document.getElementById('container');
     
-    camera = new THREE.Camera(75, width/height, 1/1e6, 1e9);
-    camera.position.y = cameraY = -3e2 * (Model.bounds.depth / 2);
-    camera.position.z = 1e-10; // can't be 0 (devision by 0?)
-    camera.up = new THREE.Vector3(0, 0, 1);
+    camera = new THREE.Camera(30, width/height, 1/1e6, 1e9);
+    camera.up        = new THREE.Vector3(0, 0, 1);
+    camera.position  = Model.camera.position;
+    camera.direction = Model.camera.direction;
     scene = new THREE.Scene();
     renderer = new THREE.CanvasRenderer();
     renderer.setSize(width, height);
     
     mesh = new THREE.Mesh(new Model(), new THREE.MeshFaceMaterial());
-    mesh.scale.x = mesh.scale.y = mesh.scale.z = 2e3/Math.max(Model.bounds.width, Model.bounds.height, Model.bounds.depth);
     scene.addObject(mesh);
     
     container.appendChild(renderer.domElement);

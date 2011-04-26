@@ -13,17 +13,18 @@ module ExportThreeJS
 
   # to_threejs -- Convert Ruby objects into strings of JavaScript code
 
+  class ::Object;       def to_threejs; self.to_s; end; end
   class ::NilClass;     def to_threejs; 'null'; end; end
   class ::Float;        def to_threejs; "%.6f" % self; end; end
   class ::Length;       def to_threejs; to_f.to_threejs; end; end
-  class Geom::Point3d;  def to_threejs; to_a.to_threejs; end; end
-  class Geom::Vector3d; def to_threejs; to_a.to_threejs; end; end
 
-  class ::Object
+  module XYZ
     def to_threejs
-      self.to_s
+      { :x => self.x, :y => self.y, :z => self.z }.to_threejs
     end
   end
+  class Geom::Point3d;  include XYZ; end
+  class Geom::Vector3d; include XYZ; end
 
   class ::Array
     def to_threejs
@@ -42,10 +43,10 @@ module ExportThreeJS
   class Sketchup::Texture
     def to_data_url
       type = case File.extname(self.filename).downcase
-        when ".png"; "image/png"
+        when ".png";          "image/png"
         when ".jpg", ".jpeg"; "image/jpeg"
-        when ".tiff"; "image/tiff"
-        when ".gif"; "image/gif"
+        when ".tiff";         "image/tiff"
+        when ".gif";          "image/gif"
       end
       content = File.open(File.join(TMP_DIR, self.filename), "rb").read
       base64 = [content].pack("m").gsub("\n", '')
@@ -80,9 +81,10 @@ EOF
 
 
   class ThreeJSModel
-    def initialize identifier, bounds
+    def initialize identifier, bounds, view
       @identifier = identifier
       @bounds = bounds
+      @camera = view.camera
       @points = []
       @faces = []
       @materials = []
@@ -122,12 +124,8 @@ EOF
     }
     
     // Points
-    each(#{@points.map {|p| p - @bounds.center }.to_threejs}, function(point) {
-      self.vertices.push(new THREE.Vertex(new THREE.Vector3(
-        point[0],
-        point[1],
-        point[2]
-      )));
+    each(#{@points.to_threejs}, function(p) {
+      self.vertices.push(new THREE.Vertex(new THREE.Vector3(p.x, p.y, p.z)));
     });
     
     var materials = #{@materials.to_threejs};
@@ -160,9 +158,14 @@ EOF
   Model.prototype = new THREE.Geometry();
   Model.prototype.constructor = Model;
   Model.bounds = {
-    width:  #{@bounds.width.to_f},
-    height: #{@bounds.height.to_f},
-    depth:  #{@bounds.depth.to_f}
+    width:  #{@bounds.width.to_threejs},
+    height: #{@bounds.height.to_threejs},
+    depth:  #{@bounds.depth.to_threejs}
+  };
+  
+  Model.camera = {
+    position:  #{@camera.eye.to_threejs},
+    direction: #{@camera.direction.to_threejs}
   };
   
   window["#{@identifier}"] = Model;
@@ -228,7 +231,7 @@ EOF
       
       identifier = @model.title_or_untitled.gsub("\\", "\\\\") \
         .gsub('"', '\"').gsub(/\s/, "_").gsub(/[^A-Za-z1-9-_]/, '')
-      @three_js_model = ThreeJSModel.new(identifier, @model.bounds)
+      @three_js_model = ThreeJSModel.new(identifier, @model.bounds, @model.active_view)
       add_faces
       html = to_html
       File.open(@filepath, "w") {|file| file.write html }
