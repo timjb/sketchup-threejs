@@ -3,23 +3,22 @@ function render(Model) {
   
   var width     = window.innerWidth;
   var height    = window.innerHeight;
-  var rotationX = 0;
+  var rotationY = 0;
   var rotationZ = 0;
-  var cameraY   = 0;
   
   var camera, scene, renderer, mesh;
   
   function attachEvents() {
     // Start and stop the rendering when the mouse enters respectively leaves the canvas
     document.body.addEventListener('mouseover', function() { start(); }, false);
-    document.body.addEventListener('mouseout',  function() { stop(); },  false);
+    document.body.addEventListener('mouseout',  function() { stop();  }, false);
     
     // Drag to rotate
-    var down = false;
+    var down = null;
     function rotate(x, y) {
       var newDown = { x: x, y: y };
       rotationZ -= (down.x - newDown.x)*(4*Math.PI/width);
-      rotationX -= (down.y - newDown.y)*(2*Math.PI/width);
+      rotationY -= (down.y - newDown.y)*(2*Math.PI/height);
       down = newDown;
     }
     if (!iPhone) {
@@ -57,13 +56,13 @@ function render(Model) {
     
     // Mouse wheel: Zoom 5%
     // IE, Webkit, Opera
-    document.addEventListener('mousewheel', function(evt) {
+    /*document.addEventListener('mousewheel', function(evt) {
       cameraY *= 1 - evt.wheelDelta/2400;
     }, false);
     // Firefox
     window.addEventListener('DOMMouseScroll', function(evt) {
       cameraY *= 1 + evt.detail/20;
-    }, false);
+    }, false);*/
     
     // Window resize
     var resizeTimeout = null;
@@ -73,7 +72,8 @@ function render(Model) {
       
       var oldCamera = camera;
       camera = new THREE.Camera(75, width/height, 1/1e6, 1e9);
-      camera.position.y = oldCamera.position.y;
+      camera.position = oldCamera.position;
+      camera.target   = oldCamera.target;
       
       renderer.setSize(width, height);
       loop();
@@ -90,9 +90,8 @@ function render(Model) {
   var fps = 25;
   
   function loop() {
-    mesh.rotation.x = (2*mesh.rotation.x + rotationX) / 3;
+    mesh.rotation.y = (2*mesh.rotation.x + rotationY) / 3;
     mesh.rotation.z = (2*mesh.rotation.z + rotationZ) / 3;
-    camera.position.y = (2*camera.position.y + cameraY) / 3;
     renderer.render(scene, camera);
   }
   
@@ -102,10 +101,8 @@ function render(Model) {
   }
   
   function stop() {
-    if (timer) {
-      clearInterval(timer);
-      timer = null;
-    }
+    clearInterval(timer);
+    timer = null;
   }
   
   //
@@ -113,10 +110,10 @@ function render(Model) {
   function init() {
     var container = document.getElementById('container');
     
-    camera = new THREE.Camera(30, width/height, 1/1e6, 1e9);
-    camera.up        = new THREE.Vector3(0, 0, 1);
-    camera.position  = Model.camera.position;
-    camera.direction = Model.camera.direction;
+    camera = new THREE.Camera(50, width/height, 1, 10000);
+    camera.up = new THREE.Vector3(0, 0, 1);
+    camera.position = Model.camera.position;
+    camera.target.position = Model.camera.targetPosition;
     scene = new THREE.Scene();
     renderer = new THREE.CanvasRenderer();
     renderer.setSize(width, height);

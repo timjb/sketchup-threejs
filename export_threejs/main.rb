@@ -84,7 +84,7 @@ EOF
     def initialize identifier, bounds, view
       @identifier = identifier
       @bounds = bounds
-      @camera = view.camera
+      @view   = view
       @points = []
       @faces = []
       @materials = []
@@ -164,8 +164,8 @@ EOF
   };
   
   Model.camera = {
-    position:  #{@camera.eye.to_threejs},
-    direction: #{@camera.direction.to_threejs}
+    position: #{@view.camera.eye.to_threejs},
+    targetPosition: #{@view.guess_target.to_threejs}
   };
   
   window["#{@identifier}"] = Model;
