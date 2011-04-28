@@ -216,9 +216,11 @@ EOF
   end
 
   class ThreeJSExporter
-    def initialize(filepath, only_selection)
-      @filepath = filepath
+    def initialize(filepath, type, only_selection)
+      @filepath       = filepath
+      @type           = type
       @only_selection = only_selection
+      
       @model = Sketchup.active_model
       @entities = if @only_selection
         @model.selection
@@ -235,8 +237,8 @@ EOF
         .gsub('"', '\"').gsub(/\s/, "_").gsub(/[^A-Za-z1-9-_]/, '')
       @three_js_model = ThreeJSModel.new(identifier, @model.bounds, @model.active_view)
       add_faces
-      html = to_html
-      File.open(@filepath, "w") {|file| file.write html }
+      content = (@type == :js) ? to_3js+';' : to_html
+      File.open(@filepath, "w") {|file| file.write content }
     ensure
       rm_tmp_dir
       implode
@@ -327,18 +329,24 @@ EOF
 <script>
   #{load_asset("Three.js")}
   #{load_asset "scene.js"}
-  render(#{@three_js_model.to_3js});
+  render(#{to_3js});
 </script>
 EOF
+    end
+
+    def to_3js
+      @three_js_model.to_3js
     end
   end
 
   UI.menu("File").add_item "Export to Three.js" do
-    filepath = UI.savepanel("Filename", nil,
-                            Sketchup.active_model.title_or_untitled + ".html")
+    type = :js
+    filepath = UI.savepanel(
+      "Filename",
+      nil,
+      Sketchup.active_model.title_or_untitled + ".#{type.to_s}")
     unless filepath.nil?
-      exporter = ThreeJSExporter.new filepath, false
-      exporter.export
+      ThreeJSExporter.new(filepath, type, false).export
     end
   end
 
@@ -350,7 +358,7 @@ EOF
       if Sketchup.open_file template_path
         basename = File.basename template_path, '.skp'
         export_path = "#{test_export_dir}/#{basename}.html"
-        ThreeJSExporter.new(export_path, false).export
+        ThreeJSExporter.new(export_path, :html, false).export
       end
     end
     UI.messagebox "Time needed: #{Time.now.to_f - start_time}s"
