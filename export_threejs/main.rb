@@ -11,31 +11,35 @@ module ExportThreeJS
     end
   end
 
-  # to_threejs -- Convert Ruby objects into strings of JavaScript code
+  # to_3js -- Convert Ruby objects into strings of JavaScript code
 
-  class ::Object;       def to_threejs; self.to_s; end; end
-  class ::NilClass;     def to_threejs; 'null'; end; end
-  class ::Float;        def to_threejs; "%.6f" % self; end; end
-  class ::Length;       def to_threejs; to_f.to_threejs; end; end
+  class ::Object;   def to_3js; self.to_s;     end; end
+  class ::NilClass; def to_3js; 'null';        end; end
+  class ::Float;    def to_3js; "%.6f" % self; end; end
+  class ::Length;   def to_3js; to_f.to_3js;   end; end
 
-  module XYZ
-    def to_threejs
-      { :x => self.x, :y => self.y, :z => self.z }.to_threejs
+  class Geom::Point3d
+    def to_3js
+      "new THREE.Vertex(new THREE.Vector3(#{x.to_3js},#{y.to_3js},#{z.to_3js}))"
     end
   end
-  class Geom::Point3d;  include XYZ; end
-  class Geom::Vector3d; include XYZ; end
+
+  class Geom::Vector3d
+    def to_3js
+      "new THREE.Vector3(#{x.to_3js}, #{y.to_3js}, #{z.to_3js})"
+    end
+  end
 
   class ::Array
-    def to_threejs
-      '[' + self.map { |i| i.to_threejs }.join(',') + ']'
+    def to_3js
+      '[' + self.map { |i| i.to_3js }.join(',') + ']'
     end
   end
 
   class ::Hash
-    def to_threejs
+    def to_3js
       '{' + self.to_a.map do |kv|
-        kv[0].to_s + ':' + kv[1].to_threejs
+        kv[0].to_s + ':' + kv[1].to_3js
       end.join(',') + '}'
     end
   end
@@ -61,7 +65,7 @@ module ExportThreeJS
   end
 
   class Sketchup::Material
-    def to_threejs
+    def to_3js
       props = {}
       if self.materialType == 0 or self.materialType == 2
         props[:color] = "0x" + self.color.to_hex
@@ -75,7 +79,7 @@ new THREE.Texture((function(img) {
 EOF
       end
       props[:opacity] = self.alpha
-      "new THREE.MeshBasicMaterial(#{props.to_threejs})"
+      "new THREE.MeshBasicMaterial(#{props.to_3js})"
     end
   end
 
@@ -86,7 +90,7 @@ EOF
       @bounds = bounds
       @view   = view
       @points = []
-      @faces = []
+      @faces  = []
       @materials = []
       @uvs = []
     end
@@ -110,7 +114,7 @@ EOF
       handle_side face, mesh, point_indices, false
     end
 
-    def to_threejs
+    def to_3js
       return <<EOF
 (function() {
   function Model() {
@@ -124,14 +128,12 @@ EOF
     }
     
     // Points
-    each(#{@points.to_threejs}, function(p) {
-      self.vertices.push(new THREE.Vertex(new THREE.Vector3(p.x, p.y, p.z)));
-    });
+    this.vertices = #{@points.to_3js};
     
-    var materials = #{@materials.to_threejs};
+    var materials = #{@materials.to_3js};
     
     // Faces
-    each(#{@faces.to_threejs}, function(triangle) {
+    each(#{@faces.to_3js}, function(triangle) {
       self.faces.push(new THREE.Face3(
         triangle[0],
         triangle[1],
@@ -143,7 +145,7 @@ EOF
     });
     
     // UVs
-    each(#{@uvs.to_threejs}, function(uvs) {
+    each(#{@uvs.to_3js}, function(uvs) {
       self.faceUvs.push(uvs == null ? uvs : [
         new THREE.UV(uvs[0][0], uvs[0][1]),
         new THREE.UV(uvs[1][0], uvs[1][1]),
@@ -158,14 +160,14 @@ EOF
   Model.prototype = new THREE.Geometry();
   Model.prototype.constructor = Model;
   Model.bounds = {
-    width:  #{@bounds.width.to_threejs},
-    height: #{@bounds.height.to_threejs},
-    depth:  #{@bounds.depth.to_threejs}
+    width:  #{@bounds.width.to_3js},
+    height: #{@bounds.height.to_3js},
+    depth:  #{@bounds.depth.to_3js}
   };
   
   Model.camera = {
-    position: #{@view.camera.eye.to_threejs},
-    targetPosition: #{@view.guess_target.to_threejs}
+    position:       #{@view.camera.eye.to_3js}.position,
+    targetPosition: #{@view.guess_target.to_3js}.position
   };
   
   window["#{@identifier}"] = Model;
@@ -325,7 +327,7 @@ EOF
 <script>
   #{load_asset("Three.js")}
   #{load_asset "scene.js"}
-  render(#{@three_js_model.to_threejs});
+  render(#{@three_js_model.to_3js});
 </script>
 EOF
     end

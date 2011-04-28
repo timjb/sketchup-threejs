@@ -1,4 +1,4 @@
-* { margin: 0; padding: 0 }
+* { margin: 0; padding: 0; }
 
 body {
   user-select: none; -webkit-user-select: none; -moz-user-select: none; /* disable text selection */
@@ -21,8 +21,4 @@ h1 {
 
 canvas {
   position: absolute;
-}
-
-.mousedown canvas {
-  cursor: move;
 }

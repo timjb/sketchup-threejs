@@ -1,30 +1,38 @@
 function render(Model) {
   var iPhone = navigator.userAgent.indexOf('iPhone') != -1;
   
-  var width     = window.innerWidth;
-  var height    = window.innerHeight;
-  var rotationY = 0;
-  var rotationZ = 0;
+  var width  = window.innerWidth;
+  var height = window.innerHeight;
   
   var camera, scene, renderer, mesh;
   
   function attachEvents() {
-    // Start and stop the rendering when the mouse enters respectively leaves the canvas
-    document.body.addEventListener('mouseover', function() { start(); }, false);
-    document.body.addEventListener('mouseout',  function() { stop();  }, false);
-    
     // Drag to rotate
     var down = null;
     function rotate(x, y) {
       var newDown = { x: x, y: y };
-      rotationZ -= (down.x - newDown.x)*(4*Math.PI/width);
-      rotationY -= (down.y - newDown.y)*(2*Math.PI/height);
+      var rotZ   = (down.x - newDown.x)*(4*Math.PI/width);
+      // TODO: make this relative to the bounds of the model:
+      var deltaZ = down.y - newDown.y;
       down = newDown;
+      
+      // There *must* be a better way to rotate the camera around a given point
+      // but I don't know it *yet*.
+      var p = new THREE.Vector3().sub(camera.position, camera.target.position);
+      var p2 = new THREE.Vector3();
+      p2.x = p.x * Math.cos(rotZ) - p.y * Math.sin(rotZ);
+      p2.y = p.x * Math.sin(rotZ) + p.y * Math.cos(rotZ);
+      p2.z = p.z - deltaZ;
+      camera.position = new THREE.Vector3().add(camera.target.position, p2);
+      camera.updateProjectionMatrix();
+      camera.update();
+      
+      render();
     }
     if (!iPhone) {
       document.body.addEventListener('mousedown', function(evt) {
         down = { x: evt.clientX, y: evt.clientY };
-        document.body.className += ' mousedown';
+        delete document.body.style.cursor;
       }, false);
       document.body.addEventListener('mousemove', function(evt) {
         if (down) {
@@ -32,8 +40,8 @@ function render(Model) {
         }
       }, false);
       function mouseUp() {
-        down = false;
-        document.body.className = document.body.className.replace(/(^|\s)mousedown(\s|$)/, '');
+        down = null;
+        document.body.style.cursor = 'move';
       }
       document.addEventListener('mouseup', mouseUp, false);
       document.addEventListener('mouseout', mouseUp, false);
@@ -49,7 +57,6 @@ function render(Model) {
         if (evt.touches.length == 1) {
           var touch = evt.touches[0];
           rotate(touch.pageX, touch.pageY);
-          loop();
         }
       }, false);
     }
@@ -71,12 +78,12 @@ function render(Model) {
       height = window.innerHeight;
       
       var oldCamera = camera;
-      camera = new THREE.Camera(75, width/height, 1/1e6, 1e9);
+      camera = new THREE.Camera(50, width/height, 1/1e6, 1e9);
       camera.position = oldCamera.position;
       camera.target   = oldCamera.target;
       
       renderer.setSize(width, height);
-      loop();
+      render();
     }
     window.addEventListener('resize', function() {
       clearTimeout(resizeTimeout);
@@ -84,28 +91,9 @@ function render(Model) {
     }, false);
   }
   
-  //
-  
-  var timer = null;
-  var fps = 25;
-  
-  function loop() {
-    mesh.rotation.y = (2*mesh.rotation.x + rotationY) / 3;
-    mesh.rotation.z = (2*mesh.rotation.z + rotationZ) / 3;
+  function render() {
     renderer.render(scene, camera);
   }
-  
-  function start() {
-    stop();
-    timer = setInterval(loop, 1000/fps);
-  }
-  
-  function stop() {
-    clearInterval(timer);
-    timer = null;
-  }
-  
-  //
   
   function init() {
     var container = document.getElementById('container');
@@ -123,7 +111,8 @@ function render(Model) {
     
     container.appendChild(renderer.domElement);
     attachEvents();
-    loop();
+    
+    render();
   }
   
   init();
