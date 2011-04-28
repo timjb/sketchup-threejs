@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <title>Export to Three.js</title>
+  <style>
+    * { margin: 0; padding: 0; }
+    body {
+      font: 14px Helvetica, Arial, sans-serif;
+      padding: 10px;
+    }
+  </style>
+</head>
+
+<body>
+  <form>
+    <p>
+      <label><input name="type-radio" id="type-html" type="radio" value="html" checked="checked" /> Whole Webpage</label>
+      <br />
+      <label><input name="type-radio" id="type-js" type="radio" value="js" /> Just the JavaScript</label>
+      <input type="hidden" id="type" name="type" value="html" />
+    <p>
+  </form>
+
+  <script>
+    var byId = function(id) { return document.getElementById(id); };
+    
+    // Whenever the state of a `[name=type-radio]` radio button changes, set the
+    // value of the hidden input field `#type`. The value of the hidden field
+    // can then be easily read from Ruby.
+    (function() {
+      var hiddenInput = byId('type');
+      
+      var typeHtml = byId('type-html');
+      typeHtml.onclick = function() {
+        hiddenInput.value = 'html';
+      };
+      
+      var typeJs = byId('type-js');
+      typeJs.onclick = function() {
+        hiddenInput.value = 'js';
+      };
+    })();
+  </script>
+</body>
+
+</html>

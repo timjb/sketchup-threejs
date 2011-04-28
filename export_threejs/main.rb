@@ -340,14 +340,19 @@ EOF
   end
 
   UI.menu("File").add_item "Export to Three.js" do
-    type = :js
-    filepath = UI.savepanel(
-      "Filename",
-      nil,
-      Sketchup.active_model.title_or_untitled + ".#{type.to_s}")
-    unless filepath.nil?
-      ThreeJSExporter.new(filepath, type, false).export
+    dialog = UI::WebDialog.new "Export to Three.js", false
+    dialog.set_file 'dialog.html', __FILE__
+    dialog.set_on_close do
+      type = dialog.get_element_value('type').to_sym
+      filepath = UI.savepanel(
+        "Filename",
+        nil,
+        Sketchup.active_model.title_or_untitled + ".#{type.to_s}")
+      unless filepath.nil?
+        ThreeJSExporter.new(filepath, type, false).export
+      end
     end
+    dialog.show_modal
   end
 
   test_export_dir = "#{Sketchup.find_support_file 'plugins'}/test_export_threejs"
