@@ -9,3 +9,4 @@
 * Option to turn textures off
 * Option to to choose wether to export the textures as standalone files or data urls (or do this automatically for large textures)
 * Example on GitHub pages
+* Improve performance

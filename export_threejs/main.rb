@@ -100,7 +100,7 @@ EOF
       
       # Handle points
       point_indices = mesh.points.map do |point|
-        index = @points.index(point)
+        index = @points.index(point) # This sucks performance-wise!!!!!
         unless index.nil?
           index
         else
