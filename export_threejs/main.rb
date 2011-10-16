@@ -350,10 +350,11 @@ EOF
   # ==============
 
   UI.menu("File").add_item "Export to Three.js" do
-    dialog = UI::WebDialog.new "Export to Three.js", false
-    dialog.set_file 'dialog.html', __FILE__
-    dialog.set_on_close do
-      type = dialog.get_element_value('type').to_sym
+    #dialog = UI::WebDialog.new "Export to Three.js", false
+    #dialog.set_file 'dialog.html', __FILE__
+    #dialog.set_on_close do
+      #type = dialog.get_element_value('type').to_sym
+      type = 'html'
       filepath = UI.savepanel(
         "Filename",
         nil,
@@ -361,8 +362,8 @@ EOF
       unless filepath.nil?
         ThreeJSExporter.new(filepath, type, false).export
       end
-    end
-    dialog.show_modal
+    #end
+    #dialog.show_modal
   end
 
 
