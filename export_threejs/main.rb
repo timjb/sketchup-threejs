@@ -1,5 +1,15 @@
+require 'export_threejs/array_set'
+
 module ExportThreeJS
+
+  # Constants
+  # =========
+
   TMP_DIR = File.join(File.dirname(__FILE__), 'tmp')
+
+
+  # Convenience Methods
+  # ===================
 
   class Sketchup::Model
     def title_or_untitled
@@ -11,7 +21,11 @@ module ExportThreeJS
     end
   end
 
-  # to_3js -- Convert Ruby objects into strings of JavaScript code
+
+  # to_3js
+  # ======
+  #
+  # Convert Ruby objects to strings of JavaScript code
 
   class ::Object;   def to_3js; self.to_s;     end; end
   class ::NilClass; def to_3js; 'null';        end; end
@@ -75,7 +89,7 @@ module ExportThreeJS
 new THREE.Texture((function(img) {
   img.src = "#{self.texture.to_data_url}";
   return img;
-})(new Image()), THREE.UVMapping)'
+})(new Image()), THREE.UVMapping)
 EOF
       end
       props[:opacity] = self.alpha
@@ -89,7 +103,7 @@ EOF
       @identifier = identifier
       @bounds = bounds
       @view   = view
-      @points = []
+      @points = ArraySet.new
       @faces  = []
       @materials = []
       @uvs = []
@@ -99,15 +113,7 @@ EOF
       mesh = face.mesh 7
       
       # Handle points
-      point_indices = mesh.points.map do |point|
-        index = @points.index(point) # This sucks performance-wise!!!!!
-        unless index.nil?
-          index
-        else
-          @points.push point
-          @points.size - 1
-        end
-      end
+      point_indices = mesh.points.map { |point| @points.push point }
       
       # Handle materials, polygons and UVs
       handle_side face, mesh, point_indices, true
@@ -128,7 +134,7 @@ EOF
     }
     
     // Points
-    this.vertices = #{@points.to_3js};
+    this.vertices = #{@points.to_a.to_3js};
     
     var materials = #{@materials.to_3js};
     
@@ -327,7 +333,7 @@ EOF
       return <<EOF
 <div id="container"></div>
 <script>
-  #{load_asset("Three.js")}
+  #{load_asset "Three.js"}
   #{load_asset "scene.js"}
   render(#{to_3js});
 </script>
@@ -338,6 +344,10 @@ EOF
       @three_js_model.to_3js
     end
   end
+
+
+  # User Interface
+  # ==============
 
   UI.menu("File").add_item "Export to Three.js" do
     dialog = UI::WebDialog.new "Export to Three.js", false
@@ -355,9 +365,13 @@ EOF
     dialog.show_modal
   end
 
-  test_export_dir = "#{Sketchup.find_support_file 'plugins'}/test_export_threejs"
-  Dir.mkdir test_export_dir unless File.directory? test_export_dir
+
+  # Testing
+  # =======
+
   UI.menu("Plugins").add_item "Test exporting to Three.js" do
+    test_export_dir = "#{Sketchup.find_support_file 'Plugins'}/test_export_threejs"
+    Dir.mkdir test_export_dir unless File.directory? test_export_dir
     start_time = Time.now.to_f
     Dir[Sketchup.template_dir + '/*.skp'].each do |template_path|
       if Sketchup.open_file template_path
