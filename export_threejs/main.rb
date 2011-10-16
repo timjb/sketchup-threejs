@@ -333,7 +333,7 @@ EOF
       return <<EOF
 <div id="container"></div>
 <script>
-  #{load_asset "Three.js"}
+  #{load_asset "ThreeCanvas.js"}
   #{load_asset "scene.js"}
   render(#{to_3js});
 </script>

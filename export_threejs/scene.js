@@ -18,12 +18,12 @@ function render(Model) {
       
       // There *must* be a better way to rotate the camera around a given point
       // but I don't know it *yet*.
-      var p = new THREE.Vector3().sub(camera.position, camera.target.position);
+      var p = new THREE.Vector3().sub(camera.position, Model.camera.targetPosition);
       var p2 = new THREE.Vector3();
       p2.x = p.x * Math.cos(rotZ) - p.y * Math.sin(rotZ);
       p2.y = p.x * Math.sin(rotZ) + p.y * Math.cos(rotZ);
       p2.z = p.z - deltaZ;
-      camera.position = new THREE.Vector3().add(camera.target.position, p2);
+      camera.position = new THREE.Vector3().add(Model.camera.targetPosition, p2);
       camera.updateProjectionMatrix();
       camera.update();
       
@@ -78,9 +78,9 @@ function render(Model) {
       height = window.innerHeight;
       
       var oldCamera = camera;
-      camera = new THREE.Camera(50, width/height, 1/1e6, 1e9);
+      camera = new THREE.PerspectiveCamera(50, width/height, 1/1e6, 1e9);
       camera.position = oldCamera.position;
-      camera.target   = oldCamera.target;
+      //camera.target   = oldCamera.target;
       
       renderer.setSize(width, height);
       render();
@@ -98,16 +98,16 @@ function render(Model) {
   function init() {
     var container = document.getElementById('container');
     
-    camera = new THREE.Camera(50, width/height, 1, 10000);
+    camera = new THREE.PerspectiveCamera(50, width/height, 1, 10000);
     camera.up = new THREE.Vector3(0, 0, 1);
     camera.position = Model.camera.position;
-    camera.target.position = Model.camera.targetPosition;
+    //camera.target.position = Model.camera.targetPosition;
     scene = new THREE.Scene();
     renderer = new THREE.CanvasRenderer();
     renderer.setSize(width, height);
     
     mesh = new THREE.Mesh(new Model(), new THREE.MeshFaceMaterial());
-    scene.addObject(mesh);
+    scene.add(mesh);
     
     container.appendChild(renderer.domElement);
     attachEvents();
