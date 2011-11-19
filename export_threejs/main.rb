@@ -136,7 +136,7 @@ EOF
     // Points
     this.vertices = #{@points.to_a.to_3js};
     
-    var materials = #{@materials.to_3js};
+    this.materials = #{@materials.to_3js};
     
     // Faces
     each(#{@faces.to_3js}, function(triangle) {
@@ -146,7 +146,7 @@ EOF
         triangle[2],
         null,
         null,
-        materials[triangle[3]]
+        triangle[3]
       ));
     });
     
