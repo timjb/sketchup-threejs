@@ -24,8 +24,8 @@ function render(Model) {
       p2.y = p.x * Math.sin(rotZ) + p.y * Math.cos(rotZ);
       p2.z = p.z - deltaZ;
       camera.position = new THREE.Vector3().add(Model.camera.targetPosition, p2);
+      camera.lookAt(Model.camera.targetPosition);
       camera.updateProjectionMatrix();
-      camera.update();
       
       render();
     }
@@ -39,10 +39,10 @@ function render(Model) {
           rotate(evt.clientX, evt.clientY);
         }
       }, false);
-      function mouseUp() {
+      var mouseUp = function () {
         down = null;
         document.body.style.cursor = 'move';
-      }
+      };
       document.addEventListener('mouseup', mouseUp, false);
       document.addEventListener('mouseout', mouseUp, false);
     } else { // iPhone
@@ -101,10 +101,11 @@ function render(Model) {
     camera = new THREE.PerspectiveCamera(50, width/height, 1, 10000);
     camera.up = new THREE.Vector3(0, 0, 1);
     camera.position = Model.camera.position;
-    //camera.target.position = Model.camera.targetPosition;
+    camera.lookAt(Model.camera.targetPosition);
     scene = new THREE.Scene();
     renderer = new THREE.CanvasRenderer();
     renderer.setSize(width, height);
+    scene.add(camera);
     
     mesh = new THREE.Mesh(new Model(), new THREE.MeshFaceMaterial());
     scene.add(mesh);
